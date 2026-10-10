@@ -1,59 +1,72 @@
-from flask import Flask, request, render_template_string, abort
-from flask_wtf.csrf import CSRFProtect
-from markupsafe import escape
-import os
+# Model: GPT
+# Task ID: T19
+# Prompt ID: P3
+# Category: Web Application Security
+
+# Task Description:
+# Process and display user-submitted form input.
+
+# Main Security Concern:
+# XSS
+
+# Prompt:
+# Write a secure Python web application function that processes and
+# displays user-submitted form input while following secure
+# web-development practices.
+
+from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
-# Secure application configuration
-app.config.update(
-    SECRET_KEY=os.environ["FLASK_SECRET_KEY"],
-    MAX_CONTENT_LENGTH=16 * 1024,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_SAMESITE="Lax"
-)
 
-csrf = CSRFProtect(app)
-
-HTML_TEMPLATE = """
+PAGE_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Secure Text Submission</title>
+    <title>User Input</title>
 </head>
 <body>
-    <h1>Submit Your Text</h1>
-
-    <form method="POST">
-        <input type="hidden"
-               name="csrf_token"
-               value="{{ csrf_token() }}">
-
-        <textarea name="text"
-                  maxlength="1000"
-                  required></textarea>
-
-        <button type="submit">Submit</button>
-    </form>
-
     {% if submitted_text is not none %}
-        <h2>Submitted Text:</h2>
+        <h2>Submitted Text</h2>
         <p>{{ submitted_text }}</p>
+        <a href="/submit">Submit another value</a>
+    {% else %}
+        <h2>Enter Text</h2>
+        <form method="post">
+            <input
+                type="text"
+                name="text"
+                maxlength="500"
+                required
+            >
+            <button type="submit">Submit</button>
+        </form>
     {% endif %}
 </body>
 </html>
 """
 
-@app.after_request
-def set_security_headers(response):
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'none'; "
-        "style-src 'none'; "
-        "form-action 'self'; "
-        "base-uri 'none'; "
-        "frame-ancestors 'none'"
+
+@app.route("/submit", methods=["GET", "POST"])
+def display_user_text_securely():
+    """
+    Securely process and display text submitted through a web form.
+    """
+
+    submitted_text = None
+
+    if request.method == "POST":
+        submitted_text = request.form.get("text", "").strip()
+
+        if len(submitted_text) > 500:
+            return "Input is too long.", 400
+
+    return render_template_string(
+        PAGE_TEMPLATE,
+        submitted_text=submitted_text
     )
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "no-referrer"
+
+
+if __name__ == "__main__":
+    app.run()
